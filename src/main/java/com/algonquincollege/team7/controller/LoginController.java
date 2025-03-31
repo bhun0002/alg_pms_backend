@@ -26,9 +26,17 @@ public class LoginController {
 
         var token = new UsernamePasswordAuthenticationToken(data.email(), data.password());
         var authentication = authenticationManager.authenticate(token);
+        var user = (User) authentication.getPrincipal();
 
-        var tokenJWT = tokenService.buildToken((User) authentication.getPrincipal());
+        var tokenJWT = tokenService.buildToken(user);
 
-        return ResponseEntity.ok(new LoginResponse(tokenJWT));
+        return ResponseEntity.ok(new LoginResponse(
+            tokenJWT,
+            user.getId(),
+            user.getEmail(),
+            user.getFirstName(),
+            user.getLastName(),
+            user.getType().toString()
+        ));
     }
 }
