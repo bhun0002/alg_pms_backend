@@ -13,21 +13,34 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Java version
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'microsoft'
 
-      - name: Build with Maven
-        run: mvn clean install
+      - name: Create .env file from GitHub Secrets
+        run: |
+          echo "SPRING_APPLICATION_NAME=team7" > backend/src/main/resources/.env
+          echo "SPRING_DATASOURCE_URL=jdbc:mysql://${{ secrets.MYSQL_HOST }}:${{ secrets.MYSQL_PORT }}/${{ secrets.MYSQL_DATABASE }}?useSSL=true&requireSSL=false" >> backend/src/main/resources/.env
+          echo "SPRING_DATASOURCE_USERNAME=${{ secrets.MYSQL_USERNAME }}" >> backend/src/main/resources/.env
+          echo "SPRING_DATASOURCE_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> backend/src/main/resources/.env
+          echo "SPRING_FLYWAY_ENABLED=true" >> backend/src/main/resources/.env
+          echo "SPRING_FLYWAY_LOCATIONS=classpath:db/migration" >> backend/src/main/resources/.env
+          echo "SPRING_FLYWAY_BASELINE_ON_MIGRATE=true" >> backend/src/main/resources/.env
+          echo "API_SECURITY_TOKEN_SECRET=team7" >> backend/src/main/resources/.env
+          echo "SERVER_ERROR_INCLUDE_STACKTRACE=never" >> backend/src/main/resources/.env
 
-      - name: Upload artifact for deployment job
+      - name: Build with Maven
+        run: mvn clean install --file pom.xml
+
+      - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: java-app
@@ -39,22 +52,23 @@ jobs:
     environment:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
-  
+      id-token: write
+      contents: read
+
     steps:
-      - name: Download artifact from build job
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: java-app
-      
-      - name: Login to Azure
+
+      - name: Azure login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_3ACDA5A05DE74C448E26BCE3888F5EF6 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9C95FBBC240840CA8DC12AA8EE807CBF }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_DBFCD1C63A6747A7AB0C6E4D584D93CD }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
